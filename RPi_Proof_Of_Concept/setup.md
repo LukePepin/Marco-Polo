@@ -28,8 +28,41 @@ The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. B
 1. **Install Python Dependencies**:
    ```bash
    sudo apt update
-   sudo apt install python3-pip
-   pip3 install pyserial
+   sudo apt install python3-pip python3-venv
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+   If you prefer the Debian package manager instead of a virtual environment, the serial library package is `python3-serial`.
+
+   **Clean, complete command sequence**:
+   ```bash
+   cd ~/Documents/Marco-Polo/RPi_Proof_Of_Concept
+
+   sudo apt update
+   sudo apt install python3-pip python3-venv
+
+   python3 -m venv .venv
+   source .venv/bin/activate
+
+   pip install -r requirements.txt
+
+   python -c "import serial; print(serial.__version__)"
+   python validate_hardware.py
+   ```
+
+2. **Install Arduino IDE 2.x (Debian 13)**:
+   ```bash
+   cd ~/Downloads
+   wget https://downloads.arduino.cc/arduino-ide/arduino-ide_2.3.4_Linux_64bit.zip
+   unzip arduino-ide_2.3.4_Linux_64bit.zip
+   ./arduino-ide_2.3.4_Linux_64bit/arduino-ide
+   ```
+
+   Optional: add to PATH for easy launch:
+   ```bash
+   sudo ln -s ~/Downloads/arduino-ide_2.3.4_Linux_64bit/arduino-ide /usr/local/bin/arduino-ide
    ```
 
 ## Single System Feasibility Test
