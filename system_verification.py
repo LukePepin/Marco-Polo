@@ -29,19 +29,21 @@ def main():
         print(f"🔍 Testing {port_name} ({port_desc})...")
         
         try:
-            # Open serial port. Timeout of 1.5 seconds.
+            print("   [1/5] Opening serial port...")
             ser = serial.Serial(port_name, 115200, timeout=1.5, write_timeout=1)
+            
+            print("   [2/5] Waiting for connection to stabilize...")
             time.sleep(1.0)  # Wait for port to stabilize
             
-            # Clear input/output buffers
+            print("   [3/5] Clearing input/output buffers...")
             ser.reset_input_buffer()
             ser.reset_output_buffer()
             
-            # Send status query command
+            print("   [4/5] Sending GET_STATUS command...")
             ser.write(b"GET_STATUS\n")
             ser.flush()
             
-            # Read response
+            print("   [5/5] Reading response...")
             response = None
             start_time = time.time()
             while time.time() - start_time < 2.0:
@@ -53,6 +55,7 @@ def main():
                             break
                         # If we hit an init message directly, retry the status command
                         elif "INIT_SUCCESS" in line or "INIT_FAILURE" in line:
+                            print(f"   (Detected boot message: \"{line}\", retrying status...)")
                             ser.write(b"GET_STATUS\n")
                             ser.flush()
             
@@ -68,6 +71,7 @@ def main():
                     print(f"   ⚠️ WARNING: Received unexpected status: {response}")
             else:
                 # Try sending one more time in case it was slow to boot
+                print("   (No initial response. Retrying GET_STATUS query...)")
                 ser.write(b"GET_STATUS\n")
                 ser.flush()
                 time.sleep(0.5)
@@ -82,11 +86,12 @@ def main():
                             print(f"   ❌ ERROR: UWB is offline on this node ({line})")
                     else:
                         print(f"   ❌ ERROR: No response to GET_STATUS query (Got: \"{line}\").")
-                        print("      Check if the correct sketch (hider_node.ino or seeker_node.ino) is uploaded.")
+                        print("      Check if the correct sketch is uploaded.")
                 else:
                     print("   ❌ ERROR: No response to GET_STATUS query. Timed out.")
-                    print("      Ensure the Arduino has the correct sketch uploaded and is running at 115200 baud.")
+                    print("      Ensure the Arduino has the correct sketch uploaded and is running.")
                     
+            print("   Closing serial port...")
             ser.close()
         except Exception as e:
             print(f"   ❌ ERROR: Could not communicate with port: {e}")
