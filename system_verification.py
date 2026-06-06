@@ -22,6 +22,9 @@ def main():
     print(f"Found {len(ports)} serial port(s). Querying status...\n")
     
     verified_nodes = 0
+    verified_port_names = []
+    
+    monitor_mode = "--monitor" in sys.argv
     
     for p in ports:
         port_name = p.device
@@ -64,6 +67,7 @@ def main():
                 if "STATUS: OK" in response:
                     print(f"   ✅ SUCCESS: Node is online and responding.")
                     verified_nodes += 1
+                    verified_port_names.append(port_name)
                 elif "STATUS: ERROR_UWB_OFFLINE" in response:
                     print(f"   ❌ ERROR: Arduino is online but the UWB (DW1000) chip is OFFLINE.")
                     print("      Check your SPI wiring (MOSI, MISO, SCK, CS, RST, IRQ) and power.")
@@ -82,6 +86,7 @@ def main():
                         if "STATUS: OK" in line:
                             print(f"   ✅ SUCCESS: Node is online and responding.")
                             verified_nodes += 1
+                            verified_port_names.append(port_name)
                         else:
                             print(f"   ❌ ERROR: UWB is offline on this node ({line})")
                     else:
@@ -107,6 +112,61 @@ def main():
     else:
         print("🎉 All connected nodes are verified and ready for action!")
     print("=" * 60)
+    
+    if not monitor_mode:
+        print("\n💡 Tip: Run 'python system_verification.py --monitor' for live packet diagnostics.")
+    else:
+        if not verified_port_names:
+            print("\n❌ Cannot start monitor mode: No verified nodes found.")
+            sys.exit(1)
+            
+        print("\n" + "=" * 60)
+        print("   LIVE DIAGNOSTICS MONITOR (Press Ctrl+C to exit)")
+        print("=" * 60)
+        # Open serial ports for monitoring
+        active_serial_ports = []
+        for p in verified_port_names:
+            try:
+                s = serial.Serial(p, 115200, timeout=1.0)
+                active_serial_ports.append((p, s))
+            except Exception as e:
+                print(f"Failed to open {p} for monitoring: {e}")
+                
+        try:
+            while True:
+                output_lines = []
+                for p, s in active_serial_ports:
+                    try:
+                        s.reset_input_buffer()
+                        s.write(b"GET_STATUS\n")
+                        s.flush()
+                        time.sleep(0.05) # Brief pause for response
+                        
+                        resp = None
+                        start_time = time.time()
+                        while time.time() - start_time < 0.5:
+                            if s.in_waiting > 0:
+                                line = s.readline().decode('utf-8', errors='ignore').strip()
+                                if line.startswith("STATUS:"):
+                                    resp = line
+                                    break
+                        if resp:
+                            output_lines.append(f"[{p}] {resp}")
+                        else:
+                            output_lines.append(f"[{p}] TIMEOUT")
+                    except Exception as e:
+                         output_lines.append(f"[{p}] ERROR: {e}")
+                
+                # Print all lines
+                print(" | ".join(output_lines))
+                time.sleep(1.0)
+                
+        except KeyboardInterrupt:
+            print("\nExiting Live Monitor...")
+        finally:
+            for _, s in active_serial_ports:
+                s.close()
+
 
 if __name__ == "__main__":
     main()

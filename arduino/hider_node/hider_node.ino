@@ -11,19 +11,26 @@ const uint8_t PIN_RST = 3;
 bool uwbInitialized = false;
 byte txBuffer[2];
 
+// Statistics
+unsigned long tx_ok = 0;
+unsigned long tx_fail = 0;
+
 void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000); // Wait up to 5s for USB serial connection
 
   // Initialize DW1000
   DW1000.begin(PIN_IRQ, PIN_RST);
+  // Detach interrupt to prevent SPI calls inside ISR on Mbed OS (which causes crashes)
+  detachInterrupt(digitalPinToInterrupt(PIN_IRQ));
   DW1000.select(PIN_CS);
 
   DW1000.newConfiguration();
   DW1000.setDefaults();
   DW1000.setDeviceAddress(2);
   DW1000.setNetworkId(10);
-  DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
+  // Use 6.8 Mbps (short preamble, fast data rate) which is much more tolerant to crystal offset
+  DW1000.enableMode(DW1000.MODE_SHORTDATA_FAST_LOWPOWER);
   DW1000.commitConfiguration();
 
   // Read device identifier to verify connection
@@ -53,7 +60,11 @@ void loop() {
         char msg[128];
         DW1000.getPrintableDeviceIdentifier(msg);
         Serial.print("STATUS: OK (Hider), ID: ");
-        Serial.println(msg);
+        Serial.print(msg);
+        Serial.print(" | TX_OK: ");
+        Serial.print(tx_ok);
+        Serial.print(" | TX_FAIL: ");
+        Serial.println(tx_fail);
       } else {
         Serial.println("STATUS: ERROR_UWB_OFFLINE (Hider)");
       }
@@ -88,8 +99,10 @@ void loop() {
 
         // Report back to Pi
         if (txSuccess) {
+          tx_ok++;
           Serial.println("PING_SENT_SUCCESSFULLY");
         } else {
+          tx_fail++;
           Serial.println("ERROR_TX_TIMEOUT");
         }
       }

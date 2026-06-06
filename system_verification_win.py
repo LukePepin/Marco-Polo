@@ -67,6 +67,35 @@ def main():
                             print("      🎉 Hardware Status: UWB is OK and connected!")
                         elif "STATUS: ERROR_UWB_OFFLINE" in l:
                             print("      ❌ Hardware Status: UWB is OFFLINE! Check SPI wiring.")
+                            
+                    monitor_choice = input("\nDo you want to enter Live Diagnostics Monitor? (y/n): ").strip().lower()
+                    if monitor_choice == 'y':
+                        print("\n" + "=" * 60)
+                        print("   LIVE DIAGNOSTICS MONITOR (Press Ctrl+C to exit)")
+                        print("=" * 60)
+                        try:
+                            while True:
+                                ser.reset_input_buffer()
+                                ser.write(b"GET_STATUS\n")
+                                ser.flush()
+                                time.sleep(0.05)
+                                
+                                resp = None
+                                s_time = time.time()
+                                while time.time() - s_time < 0.5:
+                                    if ser.in_waiting > 0:
+                                        mline = ser.readline().decode('utf-8', errors='ignore').strip()
+                                        if mline.startswith("STATUS:"):
+                                            resp = mline
+                                            break
+                                if resp:
+                                    print(f"[{port_name}] {resp}")
+                                else:
+                                    print(f"[{port_name}] TIMEOUT")
+                                time.sleep(1.0)
+                        except KeyboardInterrupt:
+                            print("\nExiting Live Monitor...")
+                            
                     ser.close()
                     break
                 elif has_init:
