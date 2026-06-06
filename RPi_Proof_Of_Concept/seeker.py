@@ -17,6 +17,7 @@ def setup_serial():
 def main():
     print("Starting Seeker Node (UWB Only)...")
     arduino = setup_serial()
+    awaiting_distance = False
     
     try:
         while True:
@@ -28,15 +29,25 @@ def main():
                     
                     # 2. Check if the Arduino reported a ping from the Hider
                     if "UWB_PING_DETECTED" in line:
-                        print(">>> UWB Ping detected from Hider! <<<")
+                        if "[SIMULATED]" in line:
+                            print(">>> Simulated UWB ping received for bench testing. <<<")
+                        else:
+                            print(">>> UWB Ping detected from Hider! <<<")
                         # 3. Tell the Arduino to start UWB ranging
                         command = "START_RANGING\n"
                         arduino.write(command.encode('utf-8'))
                         print("Commanded Arduino to start UWB precise ranging.")
+                        awaiting_distance = True
                         
                     # If Arduino sends back distance, you can log it or display it here.
                     elif "UWB_DIST:" in line:
-                        print(f"🚀 Distance Updated: {line}")
+                        if awaiting_distance or "[SIMULATED]" in line:
+                            print(f"🚀 Distance Updated: {line}")
+                            awaiting_distance = False
+                        else:
+                            print(f"⚠️ Distance received without a preceding ping: {line}")
+                    elif line == "RANGING_STARTED":
+                        print("Arduino acknowledged the ranging command.")
 
             time.sleep(0.1) # Small delay to prevent CPU hogging
 
