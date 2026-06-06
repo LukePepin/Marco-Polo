@@ -38,7 +38,7 @@ The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. B
 
    **Clean, complete command sequence**:
    ```bash
-   cd ~/Documents/Marco-Polo/RPi_Proof_Of_Concept
+   cd ~/Documents/Marco-Polo
 
    sudo apt update
    sudo apt install python3-pip python3-venv
@@ -47,9 +47,6 @@ The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. B
    source .venv/bin/activate
 
    pip install -r requirements.txt
-
-   python -c "import serial; print(serial.__version__)"
-   python validate_hardware.py
    ```
 
 2. **Install Arduino IDE 2.x (Debian 13)**:
@@ -65,28 +62,43 @@ The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. B
    sudo ln -s ~/Downloads/arduino-ide_2.3.4_Linux_64bit/arduino-ide /usr/local/bin/arduino-ide
    ```
 
-## Single System Feasibility Test
-Before dealing with two nodes talking to each other, you should absolutely perform a **Single System Test** to isolate any hardware or serial bugs.
-You can run the provided `validate_hardware.py` script on a single Raspberry Pi. This validates:
-1. The Pi can successfully detect the Arduino over USB.
-2. The Pi can open the serial port and receive streaming data.
-If this works, you know the physical hardware integration between the "Brain" (Pi) and "Sensor Coprocessor" (Arduino) is successful before introducing the complexity of UWB wireless communication.
+## System Verification & Live Diagnostics
+
+Before running the main node scripts, you should verify that the Arduino and UWB sensors are communicating properly. We have built robust validation tools for both Windows and Raspberry Pi.
+
+### On Windows
+If you are testing the Arduino connected directly to a Windows PC:
+1. Run `python system_verification_win.py`
+2. Select your COM port. The script will test baud rates and query the UWB hardware status.
+3. You can optionally enter the **Live Diagnostics Monitor** to view real-time packet statistics (`TX_OK`, `RX_OK`, etc.).
+
+### On Raspberry Pi
+If the Arduino is connected to the Raspberry Pi:
+1. Run `python system_verification.py`
+2. This script auto-detects connected Arduinos and performs a 5-step validation to ensure the UWB hardware is responding.
+3. For continuous monitoring of packet drops/successes, run:
+   ```bash
+   python system_verification.py --monitor
+   ```
 
 ## Running the Concept Scripts
 
-We have provided two scripts: `hider.py` and `seeker.py`.
+We have provided two scripts: `hider_node.py` and `seeker_node.py`. These scripts automatically detect the connected Arduino, so you don't need to hardcode COM ports or `/dev/ttyACM0` paths.
 
-### Hider Node
+### Hider Node (Transmitter)
 1. Connect the hardware as described above.
-2. Ensure the Arduino is running a sketch that outputs its state over Serial (e.g., `VELOCITY_HIGH` when moving).
+2. Ensure the Arduino is flashed with the `arduino/hider_node/hider_node.ino` sketch.
 3. Run the script:
    ```bash
-   python3 hider.py
+   python3 hider_node.py
    ```
+4. Press ENTER to broadcast a UWB ping.
 
-### Seeker Node
+### Seeker Node (Receiver)
 1. Connect the hardware as described above.
-2. Run the script:
+2. Ensure the Arduino is flashed with the `arduino/seeker_node/seeker_node.ino` sketch.
+3. Run the script:
    ```bash
-   python3 seeker.py
+   python3 seeker_node.py
    ```
+4. It will listen for pings from the Hider and log them to the console.
