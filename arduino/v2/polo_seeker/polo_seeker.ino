@@ -1,10 +1,10 @@
 #include <SPI.h>
 #include <DW1000.h>
 
-// ---------- D-Side Hardware Pins ----------
-const uint8_t PIN_CS  = 10;
-const uint8_t PIN_IRQ = 2;
-const uint8_t PIN_RST = 3;
+// ---------- Custom Hardware Pins ----------
+const uint8_t PIN_CS  = 20; // D20 (A6)
+const uint8_t PIN_IRQ = 21; // D21 (A7)
+const uint8_t PIN_RST = 3;  // D3
 
 byte rxBuffer[128]; // Max DW1000 frame size is 127 bytes
 
