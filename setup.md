@@ -18,9 +18,9 @@ The easiest and most reliable way to connect the Arduino Nano to the Raspberry P
 
 ### 2. UWB Sensor to Arduino Nano 33 BLE
 The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. Based on your existing code, the connections are:
-- **CS**: A1
-- **IRQ**: A4
-- **RST**: D7
+- **CS**: D20 (A6)
+- **IRQ**: D21 (A7)
+- **RST**: D3
 - **MOSI/MISO/SCK**: Standard Nano SPI pins (D11, D12, D13)
 
 ## Raspberry Pi Configuration

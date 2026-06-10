@@ -2,9 +2,9 @@
 #include <DW1000.h>
 
 // ---------- DW1000 wiring ----------
-const uint8_t PIN_CS  = A1;
-const uint8_t PIN_IRQ = A4;
-const uint8_t PIN_RST = 7;
+const uint8_t PIN_CS  = 20;
+const uint8_t PIN_IRQ = 21;
+const uint8_t PIN_RST = 3;
 
 #define MSG_PING 0x05 // Custom ping message ID
 
