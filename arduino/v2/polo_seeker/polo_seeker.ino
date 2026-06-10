@@ -6,10 +6,21 @@ const uint8_t PIN_CS  = 20; // D20 (A6)
 const uint8_t PIN_IRQ = 21; // D21 (A7)
 const uint8_t PIN_RST = 3;  // D3
 
-byte rxBuffer[128]; // Max DW1000 frame size is 127 bytes
+// Hardware interrupt flags
+volatile boolean received = false;
+volatile boolean error = false;
+
+void handleReceived() {
+  received = true;
+}
+
+void handleError() {
+  error = true;
+}
 
 void startReceiver() {
   DW1000.newReceive();
+  DW1000.setDefaults();
   DW1000.receivePermanently(true);
   DW1000.startReceive();
 }
@@ -28,41 +39,32 @@ void setup() {
   DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
   DW1000.commitConfiguration();
 
+  // Attach the proper hardware interrupt handlers to the DW1000 library
+  DW1000.attachReceivedHandler(handleReceived);
+  DW1000.attachReceiveFailedHandler(handleError);
+  DW1000.attachErrorHandler(handleError);
+
   startReceiver();
   Serial.println("Polo Seeker Node (v2) Ready.");
   Serial.println("Listening for wireless UWB payloads...");
 }
 
 void loop() {
-  byte status[5];
-  DW1000.readBytes(SYS_STATUS, 0x00, status, 5);
-
-  bool dataReady = (status[1] & 0x20); // RXDFR
-  bool goodCRC   = (status[1] & 0x40); // RXFCG
-
-  if (dataReady && goodCRC) {
-    uint16_t len = DW1000.getDataLength();
-    if (len > sizeof(rxBuffer)) len = sizeof(rxBuffer);
-    DW1000.getData(rxBuffer, len);
-
-    // Clear status registers
-    byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
-
-    // Ensure it's treated as a null-terminated string
-    rxBuffer[len - 1] = '\0'; 
+  // Check the interrupt flag
+  if (received) {
+    received = false;
+    
+    // Extract payload
+    String payload;
+    DW1000.getData(payload);
     
     // Pass the payload up to Python using a specific prefix
     Serial.print("UWB_PAYLOAD:");
-    Serial.println((char*)rxBuffer);
-    
-    startReceiver();
-  } else if (dataReady) {
-    // Bad CRC, clear and restart
-    byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
-    startReceiver();
+    Serial.println(payload);
   }
   
-  delayMicroseconds(100);
+  if (error) {
+    error = false;
+    Serial.println("[Arduino]: Packet failed (CRC Error).");
+  }
 }

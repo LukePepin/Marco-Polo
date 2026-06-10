@@ -10,6 +10,13 @@ const uint8_t PIN_RST = 3;  // D3
 char gpsBuffer[100] = "NO_GPS_LOCK_YET";
 unsigned long lastSendTime = 0;
 
+volatile boolean sent = false;
+
+// Interrupt handler required by DW1000 library
+void handleSent() {
+  sent = true;
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
@@ -32,6 +39,9 @@ void setup() {
   DW1000.setNetworkId(10);
   DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
   DW1000.commitConfiguration();
+
+  // Attach hardware interrupt for transmission success
+  DW1000.attachSentHandler(handleSent);
 
   Serial.println("Marco Hider Node (v2) Ready.");
   Serial.println("Waiting for shake events...");
@@ -65,27 +75,18 @@ void loop() {
       lastSendTime = millis();
     }
   }
+  
+  // 3. Handle asynchronous transmission success
+  if (sent) {
+    sent = false;
+    Serial.print("SUCCESS: Payload Airborne -> ");
+    Serial.println(gpsBuffer);
+  }
 }
 
 void transmitUWBPayload(const char* payload) {
   DW1000.newTransmit();
-  // We send the entire GPS string as a single UWB frame (max 127 bytes)
-  DW1000.setData((byte*)payload, strlen(payload) + 1); 
+  DW1000.setDefaults();
+  DW1000.setData(String(payload)); 
   DW1000.startTransmit();
-  
-  // Wait for the transmission to finish
-  unsigned long start = millis();
-  while ((millis() - start) < 100) {
-    byte status[5];
-    DW1000.readBytes(SYS_STATUS, 0x00, status, 5);
-    if (status[0] & 0x80) break; // TXFRS flag
-    delayMicroseconds(50);
-  }
-  
-  // Clear the status registers
-  byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
-  
-  Serial.print("SUCCESS: Payload Airborne -> ");
-  Serial.println(payload);
 }
