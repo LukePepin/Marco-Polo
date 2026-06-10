@@ -1,22 +1,11 @@
 #include <SPI.h>
 #include <DW1000.h>
 
-// ---------- Custom Hardware Pins ----------
-const uint8_t PIN_CS  = 20; // D20 (A6)
-const uint8_t PIN_IRQ = 21; // D21 (A7)
-const uint8_t PIN_RST = 3;  // D3
+const uint8_t PIN_CS  = 20; 
+const uint8_t PIN_IRQ = 21; 
+const uint8_t PIN_RST = 3;  
 
-// Hardware interrupt flags
-volatile boolean received = false;
-volatile boolean error = false;
-
-void handleReceived() {
-  received = true;
-}
-
-void handleError() {
-  error = true;
-}
+byte rxBuffer[128];
 
 void startReceiver() {
   DW1000.newReceive();
@@ -29,7 +18,6 @@ void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
 
-  // Initialize UWB
   DW1000.begin(PIN_IRQ, PIN_RST);
   DW1000.select(PIN_CS);
   DW1000.newConfiguration();
@@ -39,10 +27,11 @@ void setup() {
   DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
   DW1000.commitConfiguration();
 
-  // Attach the proper hardware interrupt handlers to the DW1000 library
-  DW1000.attachReceivedHandler(handleReceived);
-  DW1000.attachReceiveFailedHandler(handleError);
-  DW1000.attachErrorHandler(handleError);
+  // CRITICAL FIX: Disable DW1000 hardware interrupts entirely!
+  // This prevents the library from clearing the registers in the background,
+  // allowing our manual polling loop to safely catch incoming packets.
+  byte zeros[4] = {0, 0, 0, 0};
+  DW1000.writeBytes(SYS_MASK, 0x00, zeros, 4);
 
   startReceiver();
   Serial.println("Polo Seeker Node (v2) Ready.");
@@ -50,21 +39,33 @@ void setup() {
 }
 
 void loop() {
-  // Check the interrupt flag
-  if (received) {
-    received = false;
+  byte status[5];
+  DW1000.readBytes(SYS_STATUS, 0x00, status, 5);
+
+  bool dataReady = (status[1] & 0x20); // RXDFR
+  bool goodCRC   = (status[1] & 0x40); // RXFCG
+
+  if (dataReady && goodCRC) {
+    uint16_t len = DW1000.getDataLength();
+    if (len > sizeof(rxBuffer)) len = sizeof(rxBuffer);
+    DW1000.getData(rxBuffer, len);
+
+    // Clear status registers
+    byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
+
+    rxBuffer[len - 1] = '\0'; 
     
-    // Extract payload
-    String payload;
-    DW1000.getData(payload);
-    
-    // Pass the payload up to Python using a specific prefix
     Serial.print("UWB_PAYLOAD:");
-    Serial.println(payload);
+    Serial.println((char*)rxBuffer);
+    
+    startReceiver();
+  } else if (dataReady) {
+    // Bad CRC, clear and restart
+    byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
+    startReceiver();
   }
   
-  if (error) {
-    error = false;
-    Serial.println("[Arduino]: Packet failed (CRC Error).");
-  }
+  delayMicroseconds(100);
 }
