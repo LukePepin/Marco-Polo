@@ -34,9 +34,8 @@
         "wires": [
             [
                 "worldmap_formatter",
-                "sqlite_raw_insert",
-                "sqlite_latest_insert",
-                "check_stable"
+                "sqlite_v3_insert",
+                "sqlite_vis_insert"
             ]
         ]
     },
@@ -45,7 +44,7 @@
         "type": "function",
         "z": "telemetry_flow",
         "name": "Format for Worldmap",
-        "func": "var data = msg.payload;\n\n// Determine icon based on device_id or role\nvar icon = \"fa-map-marker\";\nif(data.device_id && data.device_id.includes(\"hider\")) {\n    icon = \"fa-eye-slash\";\n} else {\n    icon = \"fa-search\";\n}\n\nmsg.payload = {\n    name: data.device_id,\n    lat: data.latitude,\n    lon: data.longitude,\n    icon: icon,\n    iconColor: data.gps_valid ? \"green\" : \"red\",\n    extrainfo: \"Battery: \" + data.battery_v + \"V<br>LoRa RSSI: \" + data.lora_rssi + \"<br>BLE RSSI: \" + data.ble_rssi\n};\nreturn msg;",
+        "func": "var data = msg.payload;\n\n// Skip plotting if GPS string was invalid and we have no coordinates\nif (!data.latitude || !data.longitude) return null;\n\nvar icon = \"fa-map-marker\";\nif(data.device_id && data.device_id.includes(\"hider\")) {\n    icon = \"fa-eye-slash\";\n} else {\n    icon = \"fa-search\";\n}\n\n// Format IMU data for the popup bubble\nvar acc_str = data.acc ? `[${data.acc[0].toFixed(2)}, ${data.acc[1].toFixed(2)}, ${data.acc[2].toFixed(2)}]` : 'N/A';\nvar gyr_str = data.gyr ? `[${data.gyr[0].toFixed(2)}, ${data.gyr[1].toFixed(2)}, ${data.gyr[2].toFixed(2)}]` : 'N/A';\n\nmsg.payload = {\n    name: data.device_id,\n    lat: data.latitude,\n    lon: data.longitude,\n    icon: icon,\n    iconColor: data.gps_valid ? \"green\" : \"red\",\n    extrainfo: \"<b>IMU Data</b><br>Accel: \" + acc_str + \"<br>Gyro: \" + gyr_str + \"<br><br><b>Raw GPS</b>: \" + data.gps\n};\nreturn msg;",
         "outputs": 1,
         "x": 520,
         "y": 80,
@@ -81,13 +80,13 @@
         "wires": []
     },
     {
-        "id": "sqlite_raw_insert",
+        "id": "sqlite_v3_insert",
         "type": "function",
         "z": "telemetry_flow",
-        "name": "Raw SQL Insert",
-        "func": "var p = msg.payload;\nmsg.topic = `INSERT INTO telemetry (device_id, timestamp, gps_valid, latitude, longitude, lora_rssi, ble_rssi, motion_detected, battery_v) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.gps_valid ? 1 : 0}, ${p.latitude}, ${p.longitude}, ${p.lora_rssi}, ${p.ble_rssi}, ${p.motion_detected ? 1 : 0}, ${p.battery_v})`;\nreturn msg;",
+        "name": "V3 Raw SQL Insert",
+        "func": "var p = msg.payload;\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nmsg.topic = `INSERT INTO telemetry_v3 (device_id, timestamp, gps_valid, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z, raw_gps) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.gps_valid ? 1 : 0}, ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]}, '${p.gps}')`;\nreturn msg;",
         "outputs": 1,
-        "x": 500,
+        "x": 510,
         "y": 140,
         "wires": [
             [
@@ -96,52 +95,14 @@
         ]
     },
     {
-        "id": "sqlite_latest_insert",
+        "id": "sqlite_vis_insert",
         "type": "function",
         "z": "telemetry_flow",
-        "name": "Latest SQL Insert",
-        "func": "var p = msg.payload;\nmsg.topic = `INSERT INTO latest_telemetry (device_id, timestamp, gps_valid, latitude, longitude, lora_rssi, ble_rssi, motion_detected, battery_v) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.gps_valid ? 1 : 0}, ${p.latitude}, ${p.longitude}, ${p.lora_rssi}, ${p.ble_rssi}, ${p.motion_detected ? 1 : 0}, ${p.battery_v}) \\\nON CONFLICT(device_id) DO UPDATE SET \\\ntimestamp=excluded.timestamp, \\\ngps_valid=excluded.gps_valid, \\\nlatitude=excluded.latitude, \\\nlongitude=excluded.longitude, \\\nlora_rssi=excluded.lora_rssi, \\\nble_rssi=excluded.ble_rssi, \\\nmotion_detected=excluded.motion_detected, \\\nbattery_v=excluded.battery_v;`;\nreturn msg;",
+        "name": "Vis Tables SQL Insert",
+        "func": "var p = msg.payload;\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nvar table = p.device_id.includes(\"hider\") ? \"hider_visualization\" : \"seeker_visualization\";\n\nmsg.topic = `INSERT INTO ${table} (timestamp, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z) \\\nVALUES (datetime(${p.timestamp}, 'unixepoch'), ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]})`;\nreturn msg;",
         "outputs": 1,
-        "x": 510,
+        "x": 520,
         "y": 200,
-        "wires": [
-            [
-                "sqlite_db"
-            ]
-        ]
-    },
-    {
-        "id": "check_stable",
-        "type": "switch",
-        "z": "telemetry_flow",
-        "name": "Is Stable? (GPS & Motion)",
-        "property": "payload.gps_valid",
-        "propertyType": "msg",
-        "rules": [
-            {
-                "t": "true"
-            }
-        ],
-        "checkall": "true",
-        "repair": false,
-        "outputs": 1,
-        "x": 530,
-        "y": 260,
-        "wires": [
-            [
-                "sqlite_stable_insert"
-            ]
-        ]
-    },
-    {
-        "id": "sqlite_stable_insert",
-        "type": "function",
-        "z": "telemetry_flow",
-        "name": "Stable SQL Insert",
-        "func": "var p = msg.payload;\n// Only executed if switch node passes (e.g. gps_valid is true)\nmsg.topic = `INSERT INTO stable_telemetry (device_id, timestamp, latitude, longitude, battery_v) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.latitude}, ${p.longitude}, ${p.battery_v}) \\\nON CONFLICT(device_id) DO UPDATE SET \\\ntimestamp=excluded.timestamp, \\\nlatitude=excluded.latitude, \\\nlongitude=excluded.longitude, \\\nbattery_v=excluded.battery_v;`;\nreturn msg;",
-        "outputs": 1,
-        "x": 750,
-        "y": 260,
         "wires": [
             [
                 "sqlite_db"
@@ -156,8 +117,8 @@
         "sqlquery": "msg.topic",
         "sql": "",
         "name": "Asset DB",
-        "x": 920,
-        "y": 180,
+        "x": 760,
+        "y": 170,
         "wires": [
             []
         ]

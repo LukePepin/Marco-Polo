@@ -9,8 +9,8 @@ echo "[1/6] Updating APT repositories..."
 sudo apt update
 sudo apt upgrade -y
 
-echo "[2/6] Installing dependencies (Git, Python3, venv)..."
-sudo apt install -y git python3-pip python3-venv curl build-essential
+echo "[2/6] Installing dependencies (Git, Python3, system-wide libraries)..."
+sudo apt install -y git python3-pip curl build-essential python3-serial python3-paho-mqtt
 
 echo "[3/6] Installing Mosquitto (MQTT Broker)..."
 sudo apt install -y mosquitto mosquitto-clients
