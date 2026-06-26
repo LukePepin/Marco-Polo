@@ -13,6 +13,17 @@ unsigned long lastSendTime = 0;
 // Adjust threshold as needed
 const float MOVEMENT_THRESHOLD = 1.5; 
 
+// Struct to hold UWB payload safely under the 125 byte limit (Size: 109 bytes)
+struct __attribute__((packed)) UWBPayload {
+  char id[3];
+  char gps[70];
+  float ax, ay, az;
+  float gx, gy, gz;
+  float mx, my, mz;
+};
+
+void transmitUWBPayload(byte* payload, uint16_t len);
+
 void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
@@ -30,7 +41,6 @@ void setup() {
   DW1000.setDefaults();
   DW1000.setDeviceAddress(2);
   DW1000.setNetworkId(10);
-  // Using LONGDATA to support larger JSON payloads (up to ~1023 bytes)
   DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
   DW1000.commitConfiguration();
 
@@ -65,40 +75,29 @@ void loop() {
   float gForce = sqrt(ax*ax + ay*ay + az*az);
   
   if (gForce > MOVEMENT_THRESHOLD && (millis() - lastSendTime > 2000)) {
-    Serial.println("MOVEMENT DETECTED! Generating JSON payload...");
+    Serial.println("MOVEMENT DETECTED! Generating binary payload...");
     
-    // Allocate JsonDocument
-    // Size 512 is plenty for this data
-    StaticJsonDocument<512> doc;
+    UWBPayload payload;
+    strcpy(payload.id, "H1");
+    strncpy(payload.gps, gpsBuffer, sizeof(payload.gps) - 1);
+    payload.gps[sizeof(payload.gps) - 1] = '\0';
     
-    doc["id"] = "hider_1";
-    doc["gps"] = gpsBuffer;
-    
-    JsonArray acc = doc.createNestedArray("acc");
-    acc.add(ax); acc.add(ay); acc.add(az);
-    
-    JsonArray gyr = doc.createNestedArray("gyr");
-    gyr.add(gx); gyr.add(gy); gyr.add(gz);
-    
-    JsonArray mag = doc.createNestedArray("mag");
-    mag.add(mx); mag.add(my); mag.add(mz);
+    payload.ax = ax; payload.ay = ay; payload.az = az;
+    payload.gx = gx; payload.gy = gy; payload.gz = gz;
+    payload.mx = mx; payload.my = my; payload.mz = mz;
 
-    // Serialize to string
-    String output;
-    serializeJson(doc, output);
+    Serial.print("Broadcasting Binary Struct (Bytes): ");
+    Serial.println(sizeof(payload));
     
-    Serial.print("Broadcasting: ");
-    Serial.println(output);
-    
-    transmitUWBPayload(output.c_str());
+    transmitUWBPayload((byte*)&payload, sizeof(payload));
     lastSendTime = millis();
   }
 }
 
-void transmitUWBPayload(const char* payload) {
+void transmitUWBPayload(byte* payload, uint16_t len) {
   DW1000.newTransmit();
   DW1000.setDefaults();
-  DW1000.setData(String(payload)); 
+  DW1000.setData(payload, len); 
   DW1000.startTransmit();
   
   // Manual Polling for TX Complete

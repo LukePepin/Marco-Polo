@@ -11,6 +11,15 @@ byte rxBuffer[1024]; // Large enough for JSON from Hider
 char gpsBuffer[100] = "NO_GPS_LOCK_YET";
 unsigned long lastLocalSendTime = 0;
 
+// Struct to hold UWB payload safely under the 125 byte limit (Size: 109 bytes)
+struct __attribute__((packed)) UWBPayload {
+  char id[3];
+  char gps[70];
+  float ax, ay, az;
+  float gx, gy, gz;
+  float mx, my, mz;
+};
+
 void startReceiver() {
   DW1000.newReceive();
   DW1000.setDefaults();
@@ -75,11 +84,30 @@ void loop() {
     byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
 
-    rxBuffer[len - 1] = '\0'; 
-    
-    // The received buffer IS the JSON string from the hider!
-    // We just pipe it directly to Serial so Python can pick it up.
-    Serial.println((char*)rxBuffer);
+    if (len == sizeof(UWBPayload)) {
+      UWBPayload* payload = (UWBPayload*)rxBuffer;
+      
+      // Convert the binary struct back into JSON for the Python script
+      StaticJsonDocument<512> doc;
+      doc["id"] = "hider_1"; 
+      doc["gps"] = payload->gps;
+      
+      JsonArray acc = doc.createNestedArray("acc");
+      acc.add(payload->ax); acc.add(payload->ay); acc.add(payload->az);
+      
+      JsonArray gyr = doc.createNestedArray("gyr");
+      gyr.add(payload->gx); gyr.add(payload->gy); gyr.add(payload->gz);
+      
+      JsonArray mag = doc.createNestedArray("mag");
+      mag.add(payload->mx); mag.add(payload->my); mag.add(payload->mz);
+
+      String output;
+      serializeJson(doc, output);
+      Serial.println(output);
+    } else {
+      Serial.print("[Arduino] Error: Received UWB packet of incorrect size: ");
+      Serial.println(len);
+    }
     
     startReceiver();
   } else if (dataReady) {
