@@ -62,6 +62,11 @@ The UWB sensor (DWM1000) connects directly to the Arduino Nano 33 BLE via SPI. B
    sudo ln -s ~/Downloads/arduino-ide_2.3.4_Linux_64bit/arduino-ide /usr/local/bin/arduino-ide
    ```
 
+### 3. Accessing the Devices over SSH
+For headless operations, development, or debugging without a monitor, both nodes can be accessed over SSH on your local network:
+- **Seeker Node:** `ssh seeker@on-edge-pi.local`
+- **Hider Node:** `ssh hider@fox-hunt-pi.local`
+
 ## System Verification & Live Diagnostics
 
 Before running the main node scripts, you should verify that the Arduino and UWB sensors are communicating properly. We have built robust validation tools for both Windows and Raspberry Pi.
