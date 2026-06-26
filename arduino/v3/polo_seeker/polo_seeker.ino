@@ -30,31 +30,34 @@ void startReceiver() {
 void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
+  
+  Serial.println("\n--- BOOTING SEEKER ---");
 
+  Serial.println("Starting Serial1 (GPS)...");
   Serial1.begin(9600);
 
+  Serial.println("Starting IMU...");
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU! Check hardware.");
     while (1);
   }
 
+  Serial.println("Starting DW1000 (UWB)...");
   DW1000.begin(PIN_IRQ, PIN_RST);
   DW1000.select(PIN_CS);
   DW1000.newConfiguration();
   DW1000.setDefaults();
   DW1000.setDeviceAddress(1);
   DW1000.setNetworkId(10);
-  DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
   DW1000.commitConfiguration();
 
   // Disable DW1000 hardware interrupts
   byte zeros[4] = {0, 0, 0, 0};
   DW1000.writeBytes(SYS_MASK, 0x00, zeros, 4);
 
+  Serial.println("Starting Receiver...");
   startReceiver();
-  // We do not print extraneous strings here because Node-RED (via Python) 
-  // is listening. If we print normal strings, Python will just ignore them 
-  // or print them as [Arduino] logs, which is fine.
+  
   Serial.println("Polo Seeker Node (v3) Ready.");
 }
 
@@ -84,7 +87,7 @@ void loop() {
     byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
 
-    if (len == sizeof(UWBPayload)) {
+    if (len >= sizeof(UWBPayload)) {
       UWBPayload* payload = (UWBPayload*)rxBuffer;
       
       // Convert the binary struct back into JSON for the Python script
@@ -112,6 +115,7 @@ void loop() {
     startReceiver();
   } else if (dataReady) {
     // Bad CRC, clear and restart
+    Serial.println("[Arduino] Warning: Dropped UWB packet due to BAD CRC!");
     byte clear[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     DW1000.writeBytes(SYS_STATUS, 0x00, clear, 5);
     startReceiver();
