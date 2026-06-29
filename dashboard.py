@@ -7,12 +7,6 @@ import time
 
 # --- Configuration ---
 DB_PATH = "asset_tracking.db"
-# Simple Deadband to ignore tiny sensor noise/gravity leakage
-ACCEL_DEADBAND = 0.2
-# Velocity decay (simulates friction to prevent infinite drifting)
-VELOCITY_DECAY = 0.8 
-# Scale factor for visualization
-SCALE_FACTOR = 0.1
 
 st.set_page_config(page_title="Marco-Polo Predictive Dashboard", layout="wide")
 
@@ -51,7 +45,7 @@ def reset_tracking(hx, hy, sx, sy):
         st.warning(f"DB Error during reset: {e}")
 
 # --- Data Fetching & Integration ---
-def process_new_data(table, last_id, current_pos, current_vel):
+def process_new_data(table, last_id, current_pos, current_vel, deadband, decay, scale):
     conn = sqlite3.connect(DB_PATH)
     query = f"SELECT id, acc_x, acc_y, mag_x, mag_y FROM {table} WHERE id > {last_id} ORDER BY id ASC"
     df = pd.read_sql_query(query, conn)
@@ -66,16 +60,15 @@ def process_new_data(table, last_id, current_pos, current_vel):
             mx, my = row['mag_x'], row['mag_y']
             
             # Apply Deadband
-            if abs(ax) < ACCEL_DEADBAND: ax = 0
-            if abs(ay) < ACCEL_DEADBAND: ay = 0
+            if abs(ax) < deadband: ax = 0
+            if abs(ay) < deadband: ay = 0
             
-            # Simple Euler Integration (assuming dt = ~2s based on our Arduino loop)
-            # We scale it down significantly for the visualization grid
-            current_vel[0] = (current_vel[0] + ax) * VELOCITY_DECAY
-            current_vel[1] = (current_vel[1] + ay) * VELOCITY_DECAY
+            # Simple Euler Integration
+            current_vel[0] = (current_vel[0] + ax) * decay
+            current_vel[1] = (current_vel[1] + ay) * decay
             
-            current_pos[0] += current_vel[0] * SCALE_FACTOR
-            current_pos[1] += current_vel[1] * SCALE_FACTOR
+            current_pos[0] += current_vel[0] * scale
+            current_pos[1] += current_vel[1] * scale
             
             # Heading from Magnetometer (Atan2 of Y and X)
             # Note: Depending on board orientation, you may need to swap mx/my or negate them
@@ -91,6 +84,12 @@ col1, col2 = st.columns([1, 4])
 
 with col1:
     st.markdown("### Controls")
+    
+    with st.expander("⚙️ Physics Tuning"):
+        deadband = st.slider("Accel Deadband (Gs)", 0.0, 1.0, 0.05, 0.01, help="Ignores movements smaller than this value to prevent drift from noise. Lower values make it more sensitive.")
+        scale = st.slider("Scale Factor", 0.1, 10.0, 2.0, 0.1, help="Multiplies the calculated distance so tiny movements translate to feet on the grid. Higher values make the dot move further.")
+        decay = st.slider("Velocity Decay", 0.0, 1.0, 0.5, 0.05, help="Simulates friction. 0.0 stops instantly when you stop moving it, 1.0 glides forever.")
+
     st.markdown("#### Starting Positions (Feet)")
     col_x, col_y = st.columns(2)
     with col_x:
@@ -113,16 +112,32 @@ with col1:
     st.metric("Seeker X", f"{st.session_state.seeker_pos[0]:.2f}")
     st.metric("Seeker Y", f"{st.session_state.seeker_pos[1]:.2f}")
     st.metric("Seeker Heading", f"{st.session_state.seeker_heading:.0f}°")
+    
+    st.markdown("---")
+    st.markdown("### Live Data Stream")
+    with st.expander("View Raw Database Stream", expanded=False):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            h_df = pd.read_sql_query("SELECT id, acc_x, acc_y, mag_x, mag_y FROM hider_visualization ORDER BY id DESC LIMIT 5", conn)
+            st.write("Hider Stream (Last 5)")
+            st.dataframe(h_df, use_container_width=True)
+            
+            s_df = pd.read_sql_query("SELECT id, acc_x, acc_y, mag_x, mag_y FROM seeker_visualization ORDER BY id DESC LIMIT 5", conn)
+            st.write("Seeker Stream (Last 5)")
+            st.dataframe(s_df, use_container_width=True)
+            conn.close()
+        except Exception as e:
+            st.write("No data yet.")
 
 # Process new DB rows
 try:
     st.session_state.last_hider_id, st.session_state.hider_pos, st.session_state.hider_vel, h_head = process_new_data(
-        "hider_visualization", st.session_state.last_hider_id, st.session_state.hider_pos, st.session_state.hider_vel
+        "hider_visualization", st.session_state.last_hider_id, st.session_state.hider_pos, st.session_state.hider_vel, deadband, decay, scale
     )
     if h_head != 0.0: st.session_state.hider_heading = h_head
     
     st.session_state.last_seeker_id, st.session_state.seeker_pos, st.session_state.seeker_vel, s_head = process_new_data(
-        "seeker_visualization", st.session_state.last_seeker_id, st.session_state.seeker_pos, st.session_state.seeker_vel
+        "seeker_visualization", st.session_state.last_seeker_id, st.session_state.seeker_pos, st.session_state.seeker_vel, deadband, decay, scale
     )
     if s_head != 0.0: st.session_state.seeker_heading = s_head
 except Exception as e:

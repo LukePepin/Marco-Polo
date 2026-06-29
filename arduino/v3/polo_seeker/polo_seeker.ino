@@ -123,8 +123,8 @@ void loop() {
   }
 
   // 3. Periodically output Local Seeker Telemetry
-  // We output every 2 seconds
-  if (millis() - lastLocalSendTime > 2000) {
+  // We output every 1 second for smooth dashboard tracking
+  if (millis() - lastLocalSendTime > 1000) {
     float ax=0, ay=0, az=0, gx=0, gy=0, gz=0, mx=0, my=0, mz=0;
     if (IMU.accelerationAvailable()) IMU.readAcceleration(ax, ay, az);
     if (IMU.gyroscopeAvailable()) IMU.readGyroscope(gx, gy, gz);

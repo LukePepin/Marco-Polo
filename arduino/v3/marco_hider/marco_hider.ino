@@ -71,11 +71,9 @@ void loop() {
   if (IMU.gyroscopeAvailable()) IMU.readGyroscope(gx, gy, gz);
   if (IMU.magneticFieldAvailable()) IMU.readMagneticField(mx, my, mz);
 
-  // 3. Check for movement
-  float gForce = sqrt(ax*ax + ay*ay + az*az);
-  
-  if (gForce > MOVEMENT_THRESHOLD && (millis() - lastSendTime > 2000)) {
-    Serial.println("MOVEMENT DETECTED! Generating binary payload...");
+  // 3. Continuous transmission
+  if (millis() - lastSendTime > 1000) { // Transmit every 1 second
+    Serial.println("Generating binary payload...");
     
     UWBPayload payload;
     strcpy(payload.id, "H1");
