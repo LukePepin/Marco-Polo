@@ -1,49 +1,30 @@
-# Marco Polo: Roadmap & TODO (Weeks 4-8)
+# Marco-Polo Project Status & To-Do
 
-As of the end of Week 3, the foundational UWB link (6.8 Mbps) and live hardware diagnostics are fully operational. This document outlines the focus areas for the remaining 5 weeks of development leading up to the final presentation in Week 10.
+## ✅ What We Accomplished (Current Sprint)
 
-## Week 4: Distance Calculation & Motion Detection (Part 1)
+- **Hardware & User Migration:** Successfully migrated the central backend from the old Seeker Pi to the new Hub Pi (`fox-hunt-pi`). Ported all configuration files to the new `hunter` user and resolved underlying permission issues.
+- **Continuous UWB Telemetry:** Flashed new Arduino firmware (v3) to bypass the old request/response architecture, enabling a continuous, unbroken 1Hz telemetry stream from the Hider to the Seeker over the UWB radios.
+- **Data Pipeline Rebuild:** Rewrote the Python hardware listener (`polo_seeker_node.py`) to parse the continuous JSON stream. Forcefully compiled a native SQLite C++ binary from source on the Pi to resolve GLIBC compatibility issues and restore the Node-RED database ingest pipeline.
+- **Predictive Capstone Dashboard:** Created a live Streamlit dashboard (`dashboard.py`) mathematically mapped to the physical layout of the Capstone room. Built in live physics tuning sliders (Accel Deadband, Scale Factor, Velocity Decay) to allow manual adjustment of the movement algorithms.
 
-**Goal:** Transition to distance measurement and integrate the IMU for smart triggering.
+---
 
-- [ ] Implement Two-Way Ranging (TWR) logic in the Arduino firmware to calculate distance (Seeker initiates, Hider responds).
-- [ ] Utilize the Arduino Nano 33 BLE's built-in IMU (Inertial Measurement Unit) on the Hider node.
-- [ ] Write logic so that the Hider only triggers/responds to pings when physical movement is detected.
+## 🔬 Dead Reckoning Analysis
 
-## Week 5: Data Filtering & Motion Detection (Part 2)
+The current dashboard visualizes movement using **Dead Reckoning**—specifically, by taking the raw IMU accelerometer values and applying Euler integration (Acceleration → Velocity → Position). 
 
-**Goal:** Stabilize the distance readings and finalize the movement-triggered ping logic.
+### Why this approach will struggle:
+1. **Exponential Drift:** Cheap IMU accelerometers have inherent electrical noise. Because we have to integrate the data twice to find the position, any tiny bit of noise is mathematically magnified. Over time, this causes "drift" where the dashboard dot will slowly slide across the room even if the hardware is sitting perfectly still on a desk.
+2. **No Absolute Reference:** Unlike GPS (which provides absolute coordinates), the IMU only measures *relative* changes. If the system loses power or drops a packet, it has no idea where it actually is in the room. This is why we have to manually input the starting X/Y coordinates and heading on the dashboard.
+3. **Tilt Interference:** Gravity is an acceleration of 1G. If the user tilts the Arduino slightly downward, the IMU will read gravity as "forward acceleration" and the dashboard will think the user is sprinting across the room. We currently have no Kalman Filter to fuse the Gyroscope data to subtract gravity from the equation.
 
-- [ ] Refine the IMU thresholding so the Hider reliably sleeps when stationary and wakes upon movement.
-- [ ] Implement data smoothing on the Raspberry Pi (e.g., moving average or median filters) to clean up noisy UWB distance readings.
-- [ ] Ensure the Python `seeker_node.py` script reliably outputs clean, filtered distance data.
+### Why this approach is still useful:
+It proves the telemetry pipeline is instantaneous and that the math engine works. The sliders on the dashboard allow you to aggressively filter out the noise (via the Deadband slider) and simulate friction (via the Decay slider) to get a rough approximation of movement for testing purposes.
 
-## Week 6: Data Pipeline & Storage (Node-RED + NoSQL)
+---
 
-**Goal:** Build a robust backend to record and route tracking data.
+## 📝 To-Do / Next Steps for Jay-sun
 
-- [ ] Install and configure **Node-RED** on the Raspberry Pi to act as the central data broker.
-- [ ] Route the filtered Python distance data into Node-RED.
-- [ ] Set up a **NoSQL Database** (e.g., MongoDB or CouchDB) to permanently record the historical location/distance data.
-
-## Week 7: Unity 2D Visualization (Part 1)
-
-**Goal:** Begin developing a professional front-end dashboard using the Unity game engine.
-
-- [ ] Set up a 2D Unity project for visualizing the asset's location.
-- [ ] Establish a communication bridge between Node-RED (or the NoSQL DB) and the Unity application (e.g., MQTT or WebSockets).
-- [ ] Create the basic UI layout for the tracking dashboard.
-
-## Week 8: Unity 2D Visualization (Part 2) & Final Polish
-
-**Goal:** Complete the visualizer and harden the system for presentation.
-
-- [ ] Map the incoming distance/ranging data to 2D coordinates in the Unity visualizer.
-- [ ] Stress-test the entire pipeline: IMU Movement -> UWB Ping -> Pi Filter -> Node-RED -> NoSQL -> Unity.
-- [ ] Finalize documentation, architecture diagrams, and prepare for edge-cases (e.g., node resets, network drops).
-
-## Week 10: Presentation
-
-- [ ] No active development. Focus entirely on live demonstration logistics and the final report.
-- [ ] sudo nmcli dev wifi connect "ISECapstone" password "j0shf1dh"
-
+1. **RSSI Investigation:** Jay-sun is taking over the project to research **RSSI (Received Signal Strength Indicator)** between the two UWB radios.
+2. **Sensor Fusion:** Once Jay-sun determines how to accurately calculate the distance between the two radios using RSSI, that distance data can be fused with the IMU heading data.
+3. **The Ultimate Fix:** By using RSSI to provide an "Absolute Reference" distance, the system will no longer rely purely on Dead Reckoning, completely eliminating the IMU drift problem!
