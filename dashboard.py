@@ -115,7 +115,7 @@ with col1:
         hh_start = st.number_input("Hider Head (°)", value=0.0, min_value=-360.0, max_value=360.0, step=15.0)
         sh_start = st.number_input("Seeker Head (°)", value=0.0, min_value=-360.0, max_value=360.0, step=15.0)
 
-    if st.button("🔄 Apply & Reset Positions", use_container_width=True):
+    if st.button("🔄 Apply & Reset Positions", width="stretch"):
         reset_tracking(hx_start, hy_start, sx_start, sy_start, hh_start, sh_start)
         
     st.markdown("---")
@@ -138,11 +138,11 @@ with col1:
             conn = sqlite3.connect(DB_PATH)
             h_df = pd.read_sql_query("SELECT id, acc_x, acc_y, mag_x, mag_y FROM hider_visualization ORDER BY id DESC LIMIT 5", conn)
             st.write("Hider Stream (Last 5)")
-            st.dataframe(h_df, use_container_width=True)
+            st.dataframe(h_df, width="stretch")
             
             s_df = pd.read_sql_query("SELECT id, acc_x, acc_y, mag_x, mag_y FROM seeker_visualization ORDER BY id DESC LIMIT 5", conn)
             st.write("Seeker Stream (Last 5)")
-            st.dataframe(s_df, use_container_width=True)
+            st.dataframe(s_df, width="stretch")
             conn.close()
         except Exception as e:
             st.write("No data yet.")
@@ -235,7 +235,7 @@ with col2:
         showlegend=True,
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # Auto-refresh loop
 time.sleep(1)
