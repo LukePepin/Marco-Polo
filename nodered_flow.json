@@ -164,7 +164,7 @@
     {
         "id": "asset_db",
         "type": "sqlitedb",
-        "db": "/home/seeker/Documents/Marco-Polo/asset_tracking.db",
+        "db": "/home/hunter/Documents/Marco-Polo/asset_tracking.db",
         "mode": "RWC"
     }
 ]

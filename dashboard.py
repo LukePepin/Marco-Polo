@@ -23,11 +23,24 @@ if 'initialized' not in st.session_state:
     st.session_state.hider_heading = 0.0
     st.session_state.seeker_heading = 0.0
 
-def reset_tracking(hx, hy, sx, sy):
+def get_last_timestamp(table):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute(f"SELECT timestamp FROM {table} ORDER BY id DESC LIMIT 1")
+        res = c.fetchone()
+        conn.close()
+        return res[0] if res else "No Data"
+    except Exception:
+        return "Unknown"
+
+def reset_tracking(hx, hy, sx, sy, h_head, s_head):
     st.session_state.hider_pos = np.array([hx, hy])
     st.session_state.seeker_pos = np.array([sx, sy])
     st.session_state.hider_vel = np.array([0.0, 0.0])
     st.session_state.seeker_vel = np.array([0.0, 0.0])
+    st.session_state.hider_heading = float(h_head)
+    st.session_state.seeker_heading = float(s_head)
     
     # Get current max IDs so we don't process old data after a reset
     try:
@@ -90,28 +103,33 @@ with col1:
         scale = st.slider("Scale Factor", 0.1, 10.0, 2.0, 0.1, help="Multiplies the calculated distance so tiny movements translate to feet on the grid. Higher values make the dot move further.")
         decay = st.slider("Velocity Decay", 0.0, 1.0, 0.5, 0.05, help="Simulates friction. 0.0 stops instantly when you stop moving it, 1.0 glides forever.")
 
-    st.markdown("#### Starting Positions (Feet)")
-    col_x, col_y = st.columns(2)
+    st.markdown("#### Starting Positions & Orientation")
+    col_x, col_y, col_head = st.columns(3)
     with col_x:
         hx_start = st.number_input("Hider X", value=22.0, min_value=0.0, max_value=44.0, step=1.0)
         sx_start = st.number_input("Seeker X", value=22.0, min_value=0.0, max_value=44.0, step=1.0)
     with col_y:
         hy_start = st.number_input("Hider Y", value=14.0, min_value=0.0, max_value=28.0, step=1.0)
         sy_start = st.number_input("Seeker Y", value=14.0, min_value=0.0, max_value=28.0, step=1.0)
+    with col_head:
+        hh_start = st.number_input("Hider Head (°)", value=0.0, min_value=-360.0, max_value=360.0, step=15.0)
+        sh_start = st.number_input("Seeker Head (°)", value=0.0, min_value=-360.0, max_value=360.0, step=15.0)
 
     if st.button("🔄 Apply & Reset Positions", use_container_width=True):
-        reset_tracking(hx_start, hy_start, sx_start, sy_start)
+        reset_tracking(hx_start, hy_start, sx_start, sy_start, hh_start, sh_start)
         
     st.markdown("---")
     st.markdown("### Live Coordinates")
     st.metric("Hider X", f"{st.session_state.hider_pos[0]:.2f}")
     st.metric("Hider Y", f"{st.session_state.hider_pos[1]:.2f}")
     st.metric("Hider Heading", f"{st.session_state.hider_heading:.0f}°")
+    st.caption(f"Last Publish: {get_last_timestamp('hider_visualization')}")
     
     st.markdown("---")
     st.metric("Seeker X", f"{st.session_state.seeker_pos[0]:.2f}")
     st.metric("Seeker Y", f"{st.session_state.seeker_pos[1]:.2f}")
     st.metric("Seeker Heading", f"{st.session_state.seeker_heading:.0f}°")
+    st.caption(f"Last Publish: {get_last_timestamp('seeker_visualization')}")
     
     st.markdown("---")
     st.markdown("### Live Data Stream")
