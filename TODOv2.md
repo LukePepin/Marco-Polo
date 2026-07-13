@@ -42,6 +42,7 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 * [ ] **4.1 Ground-Truth Testing (2 Hours):** Power the system on the isolated network. Place the Hider exactly 1.0m, 2.0m, and 5.0m away. Verify the Unity asset accurately snaps to those distances based on the filtered data.
 * [ ] **4.2 End-to-End Demo Run (2 Hours):** Run the full cold-start sequence. Verify the Python listener and Node-RED pipeline boot correctly on the Pi, and the Unity twin on your PC connects instantly without manual debugging.
 * [ ] **4.3 Presentation Synthesis (2 Hours):** Frame the URI kit perfectly alongside the FL Kit. Show how the LoRa/GPS stack handles the outdoor 1.7-mile approach, and how your UWB edge-architecture takes over seamlessly indoors where GPS fails.
+* [ ] **4.4 Project Cleanup (NIL Hours):** Clean up all Lab materials, repository organziation and conclude project (perhaps a LinkedIN post or Project) to formally end project.
 
 ---
 
