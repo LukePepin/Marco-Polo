@@ -1,5 +1,5 @@
 // ============================================================
-// MARCO HIDER v5.1 — TWR Responder (NO delayed transmit)
+// MARCO HIDER v7.2 — TWR Responder (NO delayed transmit)
 // Board: Arduino Nano 33 BLE Sense + DWM1000
 //
 // WHY v5 EXISTS
@@ -40,7 +40,7 @@ const uint8_t PIN_RST = 3;
 // ---------- antenna delay ----------
 // Must match the Seeker. Shifts all distances by a constant offset.
 // Calibrate against a tape measure once ranging works.
-#define ANTENNA_DELAY 15750
+#define ANTENNA_DELAY 16660
 
 // ---------- message types ----------
 #define MSG_POLL     0x01
@@ -169,7 +169,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
 
-  Serial.println("\n--- BOOTING HIDER v5.1 (TWR Responder, immediate TX) ---");
+  Serial.println("\n--- BOOTING HIDER v7.2 (TWR Responder, immediate TX) ---");
 
   Serial.println("Starting IMU...");
   if (!IMU.begin()) {
@@ -189,7 +189,7 @@ void setup() {
 
   lastGoodMs = millis();
   lastImuMs  = millis();
-  Serial.println("Hider v5.1 ready. Listening for POLLs...\n");
+  Serial.println("Hider v7.2 ready. Listening for POLLs...\n");
 }
 
 // ============================================================
@@ -253,6 +253,17 @@ void loop() {
       // ---- The real, measured reply delay ----
       int64_t replyDelay = t3.getTimestamp() - t2.getTimestamp();
       if (replyDelay < 0) replyDelay += 0x10000000000LL;   // 40-bit wrap
+
+      // ---- Give the Seeker time to re-arm its receiver ----
+      // After the RESPONSE, the Seeker has real work to do: read RSSI, read
+      // diagnostics, pull the frame, clear status, tear down the receiver and
+      // rebuild it. Only THEN is it listening again. If we fire the FINAL
+      // before it is ready, the message is simply gone.
+      //
+      // v6 used 2ms and still dropped most FINALs. 10ms is generous and
+      // costs nothing: the FINAL carries no timing-critical data, just a
+      // number. It can arrive whenever the Seeker is ready to hear it.
+      delay(10);
 
       // ---- Send FINAL carrying that delay ----
       finalMsg.msgType = MSG_FINAL;

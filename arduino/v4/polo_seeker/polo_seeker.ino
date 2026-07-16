@@ -1,5 +1,5 @@
 // ============================================================
-// POLO SEEKER v5.1 — TWR Initiator + RSSI + JSON Telemetry
+// POLO SEEKER v7.2 — TWR Initiator + RSSI + JSON Telemetry
 // Board: Arduino Nano 33 BLE Sense + DWM1000
 //
 // THE EXCHANGE (three messages, no scheduled transmits):
@@ -21,6 +21,17 @@
 // OUTPUT: JSON with distance_m and rssi_dbm — the two fields this project
 // has never had, and the whole point of the exercise.
 //
+// NOTE ON CLOCK DRIFT
+// -------------------
+// v6 attempted a carrier-frequency-offset correction to compensate for the
+// two chips' crystals running at slightly different rates. The register read
+// was mis-decoded (DRX_CAR_INT is 17-bit signed, not 21-bit), producing a
+// bogus offset that swept from +8 to -6 ppm and made distances WORSE.
+//
+// That correction is removed. Raw single-sided TWR is stable enough here
+// (roughly +/-0.35 m of wobble on a stationary pair), and that residual
+// noise is exactly what the downstream filtering is designed to remove.
+//
 // TWR ROLE: TAG / INITIATOR
 // ============================================================
 
@@ -35,7 +46,7 @@ const uint8_t PIN_IRQ = 21;
 const uint8_t PIN_RST = 3;
 
 // ---------- antenna delay (must match Hider) ----------
-#define ANTENNA_DELAY 15750
+#define ANTENNA_DELAY 16660
 
 // ---------- message types ----------
 #define MSG_POLL     0x01
@@ -48,7 +59,8 @@ const uint8_t PIN_RST = 3;
 
 // ---------- timing ----------
 #define RANGE_INTERVAL_MS  1000
-#define RX_TIMEOUT_MS        60
+#define RX_TIMEOUT_MS        60     // waiting for the RESPONSE
+#define FINAL_TIMEOUT_MS     80     // waiting for the FINAL (Hider delays it 10ms)
 #define TX_TIMEOUT_MS        50
 
 // ---------- frames (must match Hider exactly) ----------
@@ -131,7 +143,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 5000);
 
-  Serial.println("\n--- BOOTING SEEKER v5.1 (TWR Initiator) ---");
+  Serial.println("\n--- BOOTING SEEKER v7.2 (TWR Initiator) ---");
 
   Serial1.begin(9600);
 
@@ -144,7 +156,7 @@ void setup() {
   Serial.println("Starting DW1000 (UWB)...");
   initDW1000();
 
-  Serial.println("Seeker v5.1 ready. Ranging every 1s.\n");
+  Serial.println("Seeker v7.2 ready. Ranging every 1s.\n");
 }
 
 // ============================================================
@@ -222,14 +234,15 @@ void loop() {
   memcpy(&lastResponse, rxBuffer, sizeof(ResponseFrame));
 
   // ============ STEP 3: RECEIVE FINAL ============
-  // The Hider sends the FINAL immediately after the RESPONSE, so we must
-  // be listening again with minimal delay. Restart the receiver right away.
+  // The Hider waits 10ms after the RESPONSE before sending the FINAL, which
+  // gives us plenty of time to finish processing and re-arm the receiver.
+  // We use a generous timeout here since the FINAL is deliberately delayed.
   DW1000.newReceive();
   DW1000.setDefaults();
-  DW1000.receivePermanently(true);
+  DW1000.receivePermanently(false);
   DW1000.startReceive();
 
-  if (!waitForRxGood(RX_TIMEOUT_MS)) {
+  if (!waitForRxGood(FINAL_TIMEOUT_MS)) {
     Serial.println("[WARN] No FINAL from Hider");
     clearStatusAll();
     emitHiderJson(NAN, rssi, fpPower, quality, false);
@@ -268,13 +281,13 @@ void loop() {
 
   bool distValid = (dist > -2.0 && dist < 200.0);
 
-  // Raw timing diagnostics — invaluable when the numbers look wrong
-  Serial.print("[TWR] RT=");
+  // Timing diagnostics
+  Serial.print("[TWR] seq=");
+  Serial.print(rangeSeq);
+  Serial.print("  RT=");
   Serial.print((long)roundTrip);
   Serial.print("  RD=");
   Serial.print((long)replyDelay);
-  Serial.print("  ToF=");
-  Serial.print((long)tof);
   Serial.print("  d=");
   Serial.print(dist, 3);
   Serial.println("m");
