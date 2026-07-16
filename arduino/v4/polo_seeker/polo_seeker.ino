@@ -46,7 +46,7 @@ const uint8_t PIN_IRQ = 21;
 const uint8_t PIN_RST = 3;
 
 // ---------- antenna delay (must match Hider) ----------
-#define ANTENNA_DELAY 16660
+#define ANTENNA_DELAY 16548
 
 // ---------- message types ----------
 #define MSG_POLL     0x01

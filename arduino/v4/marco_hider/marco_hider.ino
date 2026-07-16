@@ -40,7 +40,7 @@ const uint8_t PIN_RST = 3;
 // ---------- antenna delay ----------
 // Must match the Seeker. Shifts all distances by a constant offset.
 // Calibrate against a tape measure once ranging works.
-#define ANTENNA_DELAY 16660
+#define ANTENNA_DELAY 16548
 
 // ---------- message types ----------
 #define MSG_POLL     0x01

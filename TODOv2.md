@@ -19,8 +19,8 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 
 *Focus: Stabilize the absolute reference data before passing it to Unity.*
 
-* [ ] **2.1 Implement TWR (2 Hours):** Finalize Two-Way Ranging in the Arduino firmware. The Seeker initiates a poll, the Hider responds with timestamps, and the Seeker computes distance.
-* [ ] **2.2 Moving Average Filter (1.5 Hours):** Update `seeker_node.py` to buffer the last 5-10 UWB distance readings. Output the median or moving average to smooth out transient multi-path noise before it hits the database.
+* [x] **2.1 Implement TWR (2 Hours):** Finalize Two-Way Ranging in the Arduino firmware. The Seeker initiates a poll, the Hider responds with timestamps, and the Seeker computes distance.
+* [x] **2.2 Moving Average Filter (1.5 Hours):** Update `seeker_node.py` to buffer the last 5-10 UWB distance readings. Output the median or moving average to smooth out transient multi-path noise before it hits the database.
 * [ ] **2.3 Simple IMU Gating (1.5 Hours):** Implement basic motion-triggered pinging in the Hider firmware using the onboard LSM9DS1. Suppress UWB pinging when stationary to save processing overhead, resuming on movement.
 
 ---
