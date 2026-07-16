@@ -90,6 +90,12 @@ float c_ax = 0, c_ay = 0, c_az = 0;
 float c_gx = 0, c_gy = 0, c_gz = 0;
 float c_mx = 0, c_my = 0, c_mz = 0;
 
+// IMU Gating
+float p_ax = 0, p_ay = 0, p_az = 0;
+uint32_t lastWakeMs = 0;
+#define WAKE_DURATION_MS 2000
+#define IMU_MOTION_THRESHOLD 0.05
+
 // ---------- helpers ----------
 
 static inline void clearStatusAll() {
@@ -159,7 +165,19 @@ void dwmSoftReset() {
 
 void refreshImuCache() {
   float ax, ay, az, gx, gy, gz, mx, my, mz;
-  if (IMU.accelerationAvailable())   { IMU.readAcceleration(ax, ay, az); c_ax=ax; c_ay=ay; c_az=az; }
+  if (IMU.accelerationAvailable()) { 
+    IMU.readAcceleration(ax, ay, az); 
+    p_ax = c_ax; p_ay = c_ay; p_az = c_az;
+    c_ax = ax; c_ay = ay; c_az = az; 
+    
+    // Check for motion to wake up the radio
+    float d_ax = abs(c_ax - p_ax);
+    float d_ay = abs(c_ay - p_ay);
+    float d_az = abs(c_az - p_az);
+    if (d_ax > IMU_MOTION_THRESHOLD || d_ay > IMU_MOTION_THRESHOLD || d_az > IMU_MOTION_THRESHOLD) {
+      lastWakeMs = millis();
+    }
+  }
   if (IMU.gyroscopeAvailable())      { IMU.readGyroscope(gx, gy, gz);    c_gx=gx; c_gy=gy; c_gz=gz; }
   if (IMU.magneticFieldAvailable())  { IMU.readMagneticField(mx, my, mz); c_mx=mx; c_my=my; c_mz=mz; }
 }
@@ -189,6 +207,7 @@ void setup() {
 
   lastGoodMs = millis();
   lastImuMs  = millis();
+  lastWakeMs = millis(); // Start awake
   Serial.println("Hider v7.2 ready. Listening for POLLs...\n");
 }
 
@@ -227,6 +246,14 @@ void loop() {
     clearStatusAll();
 
     if (rxBuffer[0] == MSG_POLL) {
+      // ---- IMU Gating ----
+      // If we haven't moved in WAKE_DURATION_MS, suppress the ping to save processing overhead.
+      // The Seeker will hit a timeout and handle it gracefully on its end.
+      if ((millis() - lastWakeMs) > WAKE_DURATION_MS) {
+        startReceiver();
+        return;
+      }
+
       exchangeCount++;
 
       // ---- Send RESPONSE immediately (no scheduling) ----

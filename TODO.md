@@ -21,7 +21,7 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 
 * [x] **2.1 Implement TWR (2 Hours):** Finalize Two-Way Ranging in the Arduino firmware. The Seeker initiates a poll, the Hider responds with timestamps, and the Seeker computes distance.
 * [x] **2.2 Moving Average Filter (1.5 Hours):** Update `seeker_node.py` to buffer the last 5-10 UWB distance readings. Output the median or moving average to smooth out transient multi-path noise before it hits the database.
-* [ ] **2.3 Simple IMU Gating (1.5 Hours):** Implement basic motion-triggered pinging in the Hider firmware using the onboard LSM9DS1. Suppress UWB pinging when stationary to save processing overhead, resuming on movement.
+* [x] **2.3 Simple IMU Gating (1.5 Hours):** Implement basic motion-triggered pinging in the Hider firmware using the onboard LSM9DS1. Suppress UWB pinging when stationary to save processing overhead, resuming on movement.
 
 ---
 
@@ -42,7 +42,7 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 * [ ] **4.1 Ground-Truth Testing (2 Hours):** Power the system on the isolated network. Place the Hider exactly 1.0m, 2.0m, and 5.0m away. Verify the Unity asset accurately snaps to those distances based on the filtered data.
 * [ ] **4.2 End-to-End Demo Run (2 Hours):** Run the full cold-start sequence. Verify the Python listener and Node-RED pipeline boot correctly on the Pi, and the Unity twin on your PC connects instantly without manual debugging.
 * [ ] **4.3 Presentation Synthesis (2 Hours):** Frame the URI kit perfectly alongside the FL Kit. Show how the LoRa/GPS stack handles the outdoor 1.7-mile approach, and how your UWB edge-architecture takes over seamlessly indoors where GPS fails.
-* [ ] **4.4 Project Cleanup (NIL Hours):** Clean up all Lab materials, repository organziation and conclude project (perhaps a LinkedIN post or Project) to formally end project.
+* [x] **4.4 Project Cleanup (NIL Hours):** Clean up all Lab materials, repository organziation and conclude project (perhaps a LinkedIN post or Project) to formally end project.
 
 ---
 
