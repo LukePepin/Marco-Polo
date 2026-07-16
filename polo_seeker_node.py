@@ -2,8 +2,10 @@ import serial
 import time
 import json
 import statistics
+import sys
 from collections import deque
 import paho.mqtt.client as mqtt
+import serial.tools.list_ports
 
 # ============================================================
 # POLO SEEKER NODE v4 — with UWB distance/RSSI filtering
@@ -31,7 +33,7 @@ import paho.mqtt.client as mqtt
 #   RSSI noise is closer to gaussian, so averaging suits it better.
 # ============================================================
 
-ARDUINO_PORT = '/dev/ttyACM0'
+# Port is auto-detected in main()
 ARDUINO_BAUD = 115200
 MQTT_BROKER  = 'localhost'
 MQTT_PORT    = 1883
@@ -148,6 +150,22 @@ def parse_nmea_to_decimal(sentence):
     return False, 34.0522, -118.2437
 
 
+def find_arduino_port():
+    """Auto-detects the Arduino by checking available serial ports."""
+    ports = list(serial.tools.list_ports.comports())
+    if not ports:
+        return None
+        
+    for p in ports:
+        desc = p.description.lower()
+        # Look for common Arduino Nano 33 BLE identifiers or standard ACM ports
+        if 'arduino' in desc or 'mbed' in desc or 'nano' in desc or 'ttyacm' in p.device.lower() or 'ttyusb' in p.device.lower() or 'com' in p.device.lower():
+            return p.device
+            
+    # Fallback to the first available port
+    return ports[0].device
+
+
 def main():
     print("=" * 44)
     print("     POLO SEEKER NODE (v4 — filtered)")
@@ -169,13 +187,18 @@ def main():
         print(f"MQTT connection error: {e}")
         return
 
+    arduino_port = find_arduino_port()
+    if not arduino_port:
+        print("❌ Could not find any connected Arduinos. Is it plugged in?")
+        sys.exit(1)
+
     try:
-        arduino = serial.Serial(ARDUINO_PORT, ARDUINO_BAUD, timeout=1)
-        print(f"Connected to Arduino on {ARDUINO_PORT}")
+        arduino = serial.Serial(arduino_port, ARDUINO_BAUD, timeout=1)
+        print(f"✅ Connected to Arduino on {arduino_port}")
     except serial.SerialException:
-        print(f"Could not open {ARDUINO_PORT}. Is the Seeker plugged in?")
-        print("(Also check no monitor or other script is holding the port.)")
-        return
+        print(f"❌ Could not open {arduino_port}.")
+        print("   (Check that no other script or the Arduino IDE Serial Monitor is holding the port.)")
+        sys.exit(1)
 
     print("\nListening for packets. Ctrl+C to exit.\n")
 
