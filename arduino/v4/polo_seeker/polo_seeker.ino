@@ -215,10 +215,20 @@ void loop() {
   DW1000Time t4;
   DW1000.getReceiveTimestamp(t4);
 
-  // ***** READ RSSI HERE — before clearing status *****
+  // ***** READ RSSI AND CLOCK OFFSET HERE — before clearing status *****
   float rssi    = DW1000.getReceivePower();
   float fpPower = DW1000.getFirstPathPower();
   float quality = DW1000.getReceiveQuality();
+
+  // Read Carrier Integrator for clock drift correction
+  byte carInt[3];
+  DW1000.readBytes(0x27, 0x28, carInt, 3);
+  int32_t carrierIntegrator = (int32_t)((uint32_t)carInt[0] | ((uint32_t)carInt[1] << 8) | ((uint32_t)carInt[2] << 16));
+  if (carrierIntegrator & 0x00100000) { // Sign extend 21-bit to 32-bit
+    carrierIntegrator |= 0xFFE00000;
+  }
+  // Formula for 110 kbps, Channel 5 -> multiplier is -7.164e-11
+  double clockOffsetRatio = (double)carrierIntegrator * -7.16402e-11;
 
   uint16_t len = DW1000.getDataLength();
   if (len > sizeof(rxBuffer)) len = sizeof(rxBuffer);
@@ -275,7 +285,10 @@ void loop() {
   int64_t roundTrip = t4.getTimestamp() - t1.getTimestamp();
   if (roundTrip < 0) roundTrip += 0x10000000000LL;   // 40-bit wrap
 
-  int64_t tof   = (roundTrip - replyDelay) / 2;
+  // Apply clock drift correction to the Hider's reply delay
+  int64_t correctedReplyDelay = (int64_t)((double)replyDelay * (1.0 - clockOffsetRatio));
+
+  int64_t tof   = (roundTrip - correctedReplyDelay) / 2;
   double tofSec = (double)tof * DW_TIME_UNITS;
   double dist   = tofSec * SPEED_OF_LIGHT;
 
@@ -288,6 +301,8 @@ void loop() {
   Serial.print((long)roundTrip);
   Serial.print("  RD=");
   Serial.print((long)replyDelay);
+  Serial.print("  co=");
+  Serial.print(clockOffsetRatio * 1e6, 2); // Show ppm
   Serial.print("  d=");
   Serial.print(dist, 3);
   Serial.println("m");

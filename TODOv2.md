@@ -10,8 +10,8 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 
 *Focus: Ensure offline stability for the close-range demo.*
 
-* [ ] **1.1 Local Network Setup:** Configure a dedicated local router or set up the Pi as a standalone Wi-Fi hotspot. The system must not rely on the university's network.
-* [ ] **1.2 Static IP & Ports:** Assign a static IP to `fox-hunt-pi` and ensure the MQTT/WebSocket ports (e.g., `1883`, `1880`) are exposed for your home PC to pull the telemetry stream.
+* [x] **1.1 Local Network Setup:** Configure a dedicated local router or set up the Pi as a standalone Wi-Fi hotspot. The system must not rely on the university's network.
+* [x] **1.2 Static IP & Ports:** Assign a static IP to `fox-hunt-pi` and ensure the MQTT/WebSocket ports (e.g., `1883`, `1880`) are exposed for your home PC to pull the telemetry stream.
 
 ---
 
