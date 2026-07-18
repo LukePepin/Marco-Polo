@@ -1,3 +1,6 @@
+# Unity Project (Ignored to save Repo size and Pi memory)
+UWB_Telemetry_Engine/
+
 # Python
 __pycache__/
 *.py[cod]
