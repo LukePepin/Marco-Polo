@@ -29,7 +29,7 @@ Here is your simplified, software-focused schedule for the final 16 hours of the
 
 *Focus: Get the visualizer working from a cold start on your local PC.*
 
-* [ ] **3.1 Unity Environment Setup:** Initialize the 2D Unity project on your PC. Create the basic floorplan overlay and the physical boundary limits for the digital room.
+* [x] **3.1 Unity Environment Setup:** Initialize the 3D Unity project. Import the Polycam scan for scale reference, white-box the room with clean Unity cubes, apply PBR materials, and set up the First Person Controller to navigate the Digital Twin.
 * [ ] **3.2 MQTT/WebSocket Bridge:** Configure a C# script in Unity (using a library like M2Mqtt or NativeWebSockets) to subscribe directly to the Raspberry Pi's Node-RED data stream over the local network.
 * [ ] **3.3 Position Mapping:** Write the logic to parse the incoming filtered UWB distance JSON and map it to the transform coordinates of the Hider asset within the Unity scene.
 
