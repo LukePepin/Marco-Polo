@@ -1,5 +1,8 @@
-# Unity Project (Ignored to save Repo size and Pi memory)
-UWB_Telemetry_Engine/
+# Unity Project (Ignored to save Repo size and Pi memory, except Scripts)
+UWB_Telemetry_Engine/*
+!UWB_Telemetry_Engine/Assets/
+UWB_Telemetry_Engine/Assets/*
+!UWB_Telemetry_Engine/Assets/Scripts/
 
 # Python
 __pycache__/

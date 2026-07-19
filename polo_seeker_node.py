@@ -3,6 +3,7 @@ import time
 import json
 import statistics
 import sys
+import argparse
 from collections import deque
 import paho.mqtt.client as mqtt
 import serial.tools.list_ports
@@ -37,7 +38,7 @@ import serial.tools.list_ports
 ARDUINO_BAUD = 115200
 MQTT_BROKER  = 'localhost'
 MQTT_PORT    = 1883
-MQTT_TOPIC   = 'marcopolo/telemetry/seeker'
+MQTT_TOPIC_PREFIX = 'marcopolo/telemetry/'
 
 # ---------- filter configuration ----------
 # Window size is the core tradeoff:
@@ -167,8 +168,16 @@ def find_arduino_port():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Polo Seeker Node - UWB Telemetry Bridge")
+    parser.add_argument("--id", type=str, default="seeker", help="The ID for this node, e.g. seeker2. This becomes the MQTT topic.")
+    args = parser.parse_args()
+    
+    mqtt_topic = f"{MQTT_TOPIC_PREFIX}{args.id}"
+
     print("=" * 44)
     print("     POLO SEEKER NODE (v4 — filtered)")
+    print(f"     Node ID: {args.id}")
+    print(f"     Publishing to: {mqtt_topic}")
     print("=" * 44)
     print(f"Distance filter : median, window={DISTANCE_WINDOW}")
     print(f"RSSI filter     : moving average, window={RSSI_WINDOW}")
@@ -258,7 +267,7 @@ def main():
                             if "timestamp" not in payload:
                                 payload["timestamp"] = int(time.time())
 
-                            client.publish(MQTT_TOPIC, json.dumps(payload))
+                            client.publish(mqtt_topic, json.dumps(payload))
                             msg_count += 1
 
                             # Readable console output — show raw vs filtered
