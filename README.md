@@ -136,6 +136,7 @@ Open the Unity project, ensure your `MQTT_Manager` is pointing to `fox-hunt-pi.l
 
 - `arduino/`: Firmware source code for the Arduino Nano 33 BLE (`marco_hider`, `polo_seeker`).
 - `backend/`: The Python MQTT gateway (`polo_seeker_node.py`) and Node-RED database files.
+- `docs/`: Project documentation, including the [Lessons Learned & Roadmap](file:///c:/Users/lukep/Documents/Marco-Polo/docs/lessons_learned.md).
 - `UWB_Telemetry_Engine/`: The complete Unity 3D Digital Twin project.
 - `system-verify/`: Tools for validating hardware connections.
 
