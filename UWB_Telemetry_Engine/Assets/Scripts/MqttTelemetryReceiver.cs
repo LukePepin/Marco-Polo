@@ -61,4 +61,12 @@ public class MqttTelemetryReceiver : MonoBehaviour
             Debug.Log("[MQTT] Disconnected cleanly.");
         }
     }
+
+    public void PublishMessage(string publishTopic, string message)
+    {
+        if (client != null && client.IsConnected)
+        {
+            client.Publish(publishTopic, Encoding.UTF8.GetBytes(message), MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE, false);
+        }
+    }
 }

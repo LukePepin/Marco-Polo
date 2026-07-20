@@ -10,6 +10,9 @@ public class UwbHudManager : MonoBehaviour
     [Tooltip("The text UI element that displays the connection status.")]
     public Text connectionStatusText;
 
+    [Tooltip("The text UI element that displays the solved 3D coordinate.")]
+    public Text locationText;
+
     [Header("Connection Timeout")]
     [Tooltip("If we don't receive a message for this many seconds, show Disconnected.")]
     public float timeoutSeconds = 3.0f;
@@ -51,6 +54,15 @@ public class UwbHudManager : MonoBehaviour
         {
             connectionStatusText.text = "CONNECTED";
             connectionStatusText.color = Color.green;
+        }
+    }
+
+    // This is called by TrilaterationManager.cs every time it calculates a new position
+    public void UpdateLocationText(Vector3 pos)
+    {
+        if (locationText != null)
+        {
+            locationText.text = $"Location: X: {pos.x.ToString("F2")}  Z: {pos.z.ToString("F2")}";
         }
     }
 }

@@ -84,7 +84,7 @@
         "type": "function",
         "z": "telemetry_flow",
         "name": "V3 Raw SQL Insert",
-        "func": "var p = msg.payload;\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nmsg.topic = `INSERT INTO telemetry_v3 (device_id, timestamp, gps_valid, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z, raw_gps) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.gps_valid ? 1 : 0}, ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]}, '${p.gps}')`;\nreturn msg;",
+        "func": "var p = msg.payload;\nif(!p.latitude) return null; // Ignore Unity location data\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nmsg.topic = `INSERT INTO telemetry_v3 (device_id, timestamp, gps_valid, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z, raw_gps) \\\nVALUES ('${p.device_id}', datetime(${p.timestamp}, 'unixepoch'), ${p.gps_valid ? 1 : 0}, ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]}, '${p.gps}')`;\nreturn msg;",
         "outputs": 1,
         "x": 510,
         "y": 140,
@@ -99,7 +99,7 @@
         "type": "function",
         "z": "telemetry_flow",
         "name": "Vis Tables SQL Insert",
-        "func": "var p = msg.payload;\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nvar table = p.device_id.includes(\"hider\") ? \"hider_visualization\" : \"seeker_visualization\";\n\nmsg.topic = `INSERT INTO ${table} (timestamp, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z) \\\nVALUES (datetime(${p.timestamp}, 'unixepoch'), ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]})`;\nreturn msg;",
+        "func": "var p = msg.payload;\nif(!p.latitude) return null; // Ignore Unity location data\nif(!p.acc) p.acc = [0,0,0];\nif(!p.gyr) p.gyr = [0,0,0];\nif(!p.mag) p.mag = [0,0,0];\n\nvar table = p.device_id.includes(\"hider\") ? \"hider_visualization\" : \"seeker_visualization\";\n\nmsg.topic = `INSERT INTO ${table} (timestamp, latitude, longitude, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_x, mag_y, mag_z) \\\nVALUES (datetime(${p.timestamp}, 'unixepoch'), ${p.latitude}, ${p.longitude}, ${p.acc[0]}, ${p.acc[1]}, ${p.acc[2]}, ${p.gyr[0]}, ${p.gyr[1]}, ${p.gyr[2]}, ${p.mag[0]}, ${p.mag[1]}, ${p.mag[2]})`;\nreturn msg;",
         "outputs": 1,
         "x": 520,
         "y": 200,
@@ -166,5 +166,57 @@
         "type": "sqlitedb",
         "db": "/home/hunter/Documents/Marco-Polo/asset_tracking.db",
         "mode": "RWC"
+    },
+    {
+        "id": "mqtt_in_location",
+        "type": "mqtt in",
+        "z": "telemetry_flow",
+        "name": "Unity Location",
+        "topic": "marcopolo/telemetry/location",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "local_mosquitto",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 260,
+        "wires": [
+            [
+                "json_parser_location"
+            ]
+        ]
+    },
+    {
+        "id": "json_parser_location",
+        "type": "json",
+        "z": "telemetry_flow",
+        "name": "Parse Location",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 310,
+        "y": 260,
+        "wires": [
+            [
+                "sqlite_location_insert"
+            ]
+        ]
+    },
+    {
+        "id": "sqlite_location_insert",
+        "type": "function",
+        "z": "telemetry_flow",
+        "name": "Insert Indoor Tracking",
+        "func": "var p = msg.payload;\nmsg.topic = `INSERT INTO indoor_tracking (device_id, timestamp, x, y, z) VALUES ('${p.device_id}', datetime(${p.timestamp}/1000, 'unixepoch'), ${p.x}, ${p.y}, ${p.z})`;\nreturn msg;",
+        "outputs": 1,
+        "x": 520,
+        "y": 260,
+        "wires": [
+            [
+                "sqlite_db"
+            ]
+        ]
     }
 ]

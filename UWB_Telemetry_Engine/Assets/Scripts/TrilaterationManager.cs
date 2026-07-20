@@ -10,6 +10,14 @@ public class TrilaterationManager : MonoBehaviour
     [Tooltip("Create a 3D object (like a red cube) to represent the Hider, and drag it here")]
     public Transform targetHider;
 
+    [Header("UI Polish")]
+    [Tooltip("Drag your HUD Manager here to display coordinates.")]
+    public UwbHudManager hudManager;
+
+    [Header("MQTT Publisher")]
+    [Tooltip("Drag the MQTT_Manager here so we can publish the coordinates back to Node-RED")]
+    public MqttTelemetryReceiver mqttManager;
+
     [Header("Algorithm Settings")]
     [Tooltip("Match this to the scale multiplier on your UwbVisualizer scripts!")]
     public float scaleMultiplier = 1.0f;
@@ -20,12 +28,7 @@ public class TrilaterationManager : MonoBehaviour
     [Tooltip("Learning rate for the gradient descent. 0.1 is very stable.")]
     public float learningRate = 0.1f;
 
-    [Header("Confidence / Uncertainty Range")]
-    [Tooltip("Drag a translucent sphere here (child of Hider Target) to visualize the predictive error range.")]
-    public Transform uncertaintySphere;
-    [Tooltip("Slider to adjust how large the uncertainty range displays based on math error.")]
-    [Range(0.1f, 5.0f)]
-    public float uncertaintyMultiplier = 1.0f;
+
 
     void Update()
     {
@@ -79,19 +82,27 @@ public class TrilaterationManager : MonoBehaviour
         }
 
         // 4. Move the physical 3D object to the mathematically solved coordinate!
-        targetHider.position = Vector3.Lerp(targetHider.position, bestGuess, Time.deltaTime * 5f);
+        Vector3 finalPos = Vector3.Lerp(targetHider.position, bestGuess, Time.deltaTime * 5f);
+        finalPos.y = 1.5f; // Lock the hider target height to exactly 1.5
+        targetHider.position = finalPos;
 
-        // 5. Visualize the "Predictive Range" if the math is uncertain (spheres not overlapping)
-        if (uncertaintySphere != null && activeSpheres > 0)
+        // 5. Update the HUD
+        if (hudManager != null)
         {
-            float averageError = totalError / activeSpheres;
-            // The worse the math overlap is, the bigger this confidence sphere grows!
-            float visualRange = (averageError * 2f * scaleMultiplier) * uncertaintyMultiplier;
-            // Clamp it so it doesn't shrink to invisible if the math is absolutely perfect
-            visualRange = Mathf.Max(visualRange, 0.5f); 
-            
-            Vector3 targetScale = new Vector3(visualRange, visualRange, visualRange);
-            uncertaintySphere.localScale = Vector3.Lerp(uncertaintySphere.localScale, targetScale, Time.deltaTime * 5f);
+            hudManager.UpdateLocationText(finalPos);
+        }
+
+        // 6. Publish the final coordinate back to the MQTT Broker for Node-RED/SQLite
+        if (mqttManager != null)
+        {
+            // Only publish occasionally to avoid spamming the database (e.g. 10 times a sec)
+            if (Time.frameCount % 6 == 0)
+            {
+                // Format timestamp in milliseconds like the Python script does
+                long unixTimeMs = System.DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                string jsonPayload = $"{{\"device_id\": \"unity_digital_twin\", \"timestamp\": {unixTimeMs}, \"x\": {finalPos.x.ToString("F3")}, \"y\": {finalPos.y.ToString("F3")}, \"z\": {finalPos.z.ToString("F3")}}}";
+                mqttManager.PublishMessage("marcopolo/telemetry/location", jsonPayload);
+            }
         }
     }
 }
