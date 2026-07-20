@@ -36,7 +36,6 @@ import serial.tools.list_ports
 
 # Port is auto-detected in main()
 ARDUINO_BAUD = 115200
-MQTT_BROKER  = 'localhost'
 MQTT_PORT    = 1883
 MQTT_TOPIC_PREFIX = 'marcopolo/telemetry/'
 
@@ -170,6 +169,7 @@ def find_arduino_port():
 def main():
     parser = argparse.ArgumentParser(description="Polo Seeker Node - UWB Telemetry Bridge")
     parser.add_argument("--id", type=str, default="seeker", help="The ID for this node, e.g. seeker2. This becomes the MQTT topic.")
+    parser.add_argument("--broker", type=str, default="localhost", help="The IP address or hostname of the main MQTT broker.")
     args = parser.parse_args()
     
     mqtt_topic = f"{MQTT_TOPIC_PREFIX}{args.id}"
@@ -177,7 +177,7 @@ def main():
     print("=" * 44)
     print("     POLO SEEKER NODE (v4 — filtered)")
     print(f"     Node ID: {args.id}")
-    print(f"     Publishing to: {mqtt_topic}")
+    print(f"     Publishing to: {mqtt_topic} at {args.broker}")
     print("=" * 44)
     print(f"Distance filter : median, window={DISTANCE_WINDOW}")
     print(f"RSSI filter     : moving average, window={RSSI_WINDOW}")
@@ -189,9 +189,9 @@ def main():
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.connect(args.broker, MQTT_PORT, 60)
         client.loop_start()
-        print(f"Connected to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}")
+        print(f"Connected to MQTT broker at {args.broker}:{MQTT_PORT}")
     except Exception as e:
         print(f"MQTT connection error: {e}")
         return
