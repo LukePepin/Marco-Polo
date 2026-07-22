@@ -286,7 +286,7 @@ void loop() {
   if (roundTrip < 0) roundTrip += 0x10000000000LL;   // 40-bit wrap
 
   // Apply clock drift correction to the Hider's reply delay
-  int64_t correctedReplyDelay = (int64_t)((double)replyDelay * (1.0 - clockOffsetRatio));
+  int64_t correctedReplyDelay = (int64_t)((double)replyDelay * (1.0 + clockOffsetRatio));
 
   int64_t tof   = (roundTrip - correctedReplyDelay) / 2;
   double tofSec = (double)tof * DW_TIME_UNITS;

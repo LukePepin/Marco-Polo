@@ -226,6 +226,10 @@ def main():
                         try:
                             payload = json.loads(line)
 
+                            # Override the hardcoded 'seeker_1' from Arduino with our actual Node ID
+                            if payload.get("id") == "seeker_1":
+                                payload["id"] = args.id
+
                             # Map id -> device_id for Node-RED
                             if "id" in payload:
                                 payload["device_id"] = payload["id"]

@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using System.IO;
 public class TrilaterationManager : MonoBehaviour
 {
     [Header("The Seeker Spheres")]
@@ -9,6 +9,9 @@ public class TrilaterationManager : MonoBehaviour
     [Header("The Hider Target")]
     [Tooltip("Create a 3D object (like a red cube) to represent the Hider, and drag it here")]
     public Transform targetHider;
+
+    [Tooltip("Create a separate transparent sphere to represent uncertainty and drag it here")]
+    public Transform uncertaintySphere;
 
     [Header("UI Polish")]
     [Tooltip("Drag your HUD Manager here to display coordinates.")]
@@ -83,8 +86,18 @@ public class TrilaterationManager : MonoBehaviour
 
         // 4. Move the physical 3D object to the mathematically solved coordinate!
         Vector3 finalPos = Vector3.Lerp(targetHider.position, bestGuess, Time.deltaTime * 5f);
-        finalPos.y = 1.5f; // Lock the hider target height to exactly 1.5
         targetHider.position = finalPos;
+
+        // 4b. Re-add the Sphere of Uncertainty
+        if (activeSpheres > 0 && uncertaintySphere != null)
+        {
+            float averageError = totalError / activeSpheres;
+            // The Uncertainty Sphere dynamically grows based on how unsure the math is! (Min 0.2m, Max 3.0m)
+            float targetScale = Mathf.Clamp(averageError, 0.2f, 3.0f);
+            
+            // Scale the uncertainty sphere (position is handled automatically since it's a child)
+            uncertaintySphere.localScale = Vector3.Lerp(uncertaintySphere.localScale, Vector3.one * targetScale, Time.deltaTime * 5f);
+        }
 
         // 5. Update the HUD
         if (hudManager != null)
@@ -103,6 +116,22 @@ public class TrilaterationManager : MonoBehaviour
                 string jsonPayload = $"{{\"device_id\": \"unity_digital_twin\", \"timestamp\": {unixTimeMs}, \"x\": {finalPos.x.ToString("F3")}, \"y\": {finalPos.y.ToString("F3")}, \"z\": {finalPos.z.ToString("F3")}}}";
                 mqttManager.PublishMessage("marcopolo/telemetry/location", jsonPayload);
             }
+        }
+
+        // 7. Log validation data to local CSV for graphing
+        if (Time.frameCount % 10 == 0 && activeSpheres > 0)
+        {
+            string csvPath = Application.dataPath + "/validation_data.csv";
+            
+            // If the file doesn't exist, write the header row first
+            if (!File.Exists(csvPath))
+            {
+                File.WriteAllText(csvPath, "Timestamp,X,Y,Z,AverageError_Meters\n");
+            }
+
+            float avgError = totalError / activeSpheres;
+            string csvLine = $"{System.DateTime.Now:yyyy-MM-dd HH:mm:ss.fff},{finalPos.x:F3},{finalPos.y:F3},{finalPos.z:F3},{avgError:F3}";
+            File.AppendAllText(csvPath, csvLine + "\n");
         }
     }
 }

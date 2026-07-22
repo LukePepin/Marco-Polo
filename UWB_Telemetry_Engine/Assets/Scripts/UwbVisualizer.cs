@@ -20,6 +20,8 @@ public class UwbVisualizer : MonoBehaviour
     [Header("2D Floor Ring Settings")]
     public int segments = 50;
     public float lineWidth = 0.05f;
+    [Tooltip("Assign a Material here (like Unlit/Color) for the 2D rings")]
+    public Material lineMaterial;
     private LineRenderer circleRenderer;
 
     void Start()
@@ -35,6 +37,12 @@ public class UwbVisualizer : MonoBehaviour
             if (circleRenderer == null)
             {
                 circleRenderer = radarSphere.gameObject.AddComponent<LineRenderer>();
+            }
+
+            // Assign the material if the user dragged one into the inspector!
+            if (lineMaterial != null)
+            {
+                circleRenderer.material = lineMaterial;
             }
             
             circleRenderer.positionCount = segments + 1;
